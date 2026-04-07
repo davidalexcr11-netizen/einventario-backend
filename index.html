@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>E de Inventario</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { background-color: #f8f9fa; }
+        .producto-card { transition: transform 0.2s; }
+        .producto-card:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important; }
+        .stock-numero { font-size: 2.5rem; font-weight: bold; color: #0d6efd; }
+        .menu-link { cursor: pointer; transition: 0.3s; }
+        .menu-link:hover { background-color: #343a40 !important; border-left: 4px solid #0d6efd; }
+        .menu-link.activo { background-color: #343a40 !important; border-left: 4px solid #0d6efd; font-weight: bold; }
+        .bg-login { background: linear-gradient(135deg, #0d6efd 0%, #000000 100%); }
+    </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+    <div id="vista-login" class="d-flex align-items-center justify-content-center flex-grow-1 bg-login d-none">
+        <div class="card shadow-lg border-0 rounded-4" style="width: 100%; max-width: 400px;">
+            <div class="card-body p-5 text-center">
+                <div class="mb-4">
+                    <h2 class="fw-bold text-dark">📦 E de Inventario</h2>
+                    <p class="text-muted small">Ingresa tus credenciales para continuar</p>
+                </div>
+                <div class="mb-3 text-start">
+                    <label class="form-label text-muted fw-bold small">Correo Electrónico</label>
+                    <input type="email" id="txtEmail" class="form-control form-control-lg bg-light" placeholder="admin@einventario.com">
+                </div>
+                <div class="mb-4 text-start">
+                    <label class="form-label text-muted fw-bold small">Contraseña</label>
+                    <input type="password" id="txtPassword" class="form-control form-control-lg bg-light" placeholder="••••••••">
+                </div>
+                <button class="btn btn-primary btn-lg w-100 fw-bold" onclick="iniciarSesion()">Iniciar Sesión</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-principal" class="d-none flex-column flex-grow-1">
+        
+        <nav class="navbar navbar-dark bg-dark shadow-sm">
+            <div class="container-fluid">
+                <button class="navbar-toggler border-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#menuLateral">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <span class="navbar-brand mb-0 h1 ms-2">📦 E de Inventario</span>
+                <div class="d-flex text-white-50 small align-items-center">
+                    <span class="me-3">👤 Hola, <b id="nombreUsuarioBadge">Admin</b></span>
+                    <span id="estadoServidor">🟢 Servidor Conectado</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="menuLateral">
+            <div class="offcanvas-header border-bottom border-secondary">
+                <h5 class="offcanvas-title">Panel de Control</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+            </div>
+            <div class="offcanvas-body p-0 mt-2 d-flex flex-column">
+                <ul class="list-group list-group-flush mb-auto">
+                    <li class="list-group-item bg-dark text-white border-0 py-3 menu-link activo" id="btnMenuCatalogo" onclick="cambiarVistaApp('catalogo')" data-bs-dismiss="offcanvas">
+                        📊 Catálogo / Inventario
+                    </li>
+                    <li class="list-group-item bg-dark text-white border-0 py-3 menu-link" id="btnMenuCrear" onclick="cambiarVistaApp('crear')" data-bs-dismiss="offcanvas">
+                        ➕ Agregar Nuevo Producto
+                    </li>
+                </ul>
+                <ul class="list-group list-group-flush border-top border-secondary mt-auto">
+                    <li class="list-group-item bg-dark text-danger border-0 py-3 menu-link fw-bold" onclick="cerrarSesion()">
+                        🚪 Cerrar Sesión
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="container mt-4 flex-grow-1">
+            
+            <div id="vista-catalogo">
+                <div class="row align-items-center mb-4">
+                    <div class="col-md-5">
+                        <h3 class="text-secondary fw-bold mb-0">Inventario Actual</h3>
+                    </div>
+                    <div class="col-md-5 mt-3 mt-md-0">
+                        <input type="text" id="txtBuscar" class="form-control form-control-lg shadow-sm" placeholder="🔍 Buscar por nombre o código SKU..." onkeyup="filtrarProductos()">
+                    </div>
+                    <div class="col-md-2 mt-3 mt-md-0 text-md-end">
+                        <button class="btn btn-outline-primary btn-lg w-100" onclick="cargarInventario()">🔄 Actualizar</button>
+                    </div>
+                </div>
+                <div class="row" id="contenedorProductos"></div>
+            </div>
+
+            <div id="vista-crear" class="d-none">
+                <h3 class="text-secondary fw-bold mb-4">Registrar Nueva Mercancía</h3>
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm border-0 rounded-4">
+                            <div class="card-body p-4">
+                                <div class="mb-3"><label class="form-label text-muted fw-bold">Código (SKU)</label><input type="text" id="txtNuevoSku" class="form-control form-control-lg bg-light" placeholder="Ej: CON-001"></div>
+                                <div class="mb-3"><label class="form-label text-muted fw-bold">Nombre del Producto</label><input type="text" id="txtNuevoNombre" class="form-control form-control-lg bg-light" placeholder="Ej: Switch OLED"></div>
+                                <div class="mb-4"><label class="form-label text-muted fw-bold">Stock Inicial</label><input type="number" id="txtNuevoStock" class="form-control form-control-lg bg-light" value="0" min="0"></div>
+                                <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" onclick="crearProducto()">Guardar Producto</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-auto py-3 bg-dark border-top border-secondary text-center mt-5">
+            <div class="container">
+                <span class="text-white-50 small">&copy; 2026 <strong>E de Inventario</strong>. Desarrollado en Tulcán, Ecuador. Todos los derechos reservados.</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const API_URL = 'http://localhost:8080/api';
+        let inventarioGlobal = [];
+
+        // --- SISTEMA DE AUTENTICACIÓN ---
+        function verificarSesion() {
+            const usuarioActivo = sessionStorage.getItem("usuarioActual");
+            if (usuarioActivo) {
+                // Si ya hay sesión, mostramos la app
+                document.getElementById('vista-login').classList.remove('d-flex');
+                document.getElementById('vista-login').classList.add('d-none');
+                
+                document.getElementById('app-principal').classList.remove('d-none');
+                document.getElementById('app-principal').classList.add('d-flex');
+                
+                document.getElementById('nombreUsuarioBadge').innerText = usuarioActivo;
+                cambiarVistaApp('catalogo');
+            } else {
+                // Si no hay sesión, mostramos el login
+                document.getElementById('app-principal').classList.remove('d-flex');
+                document.getElementById('app-principal').classList.add('d-none');
+                
+                document.getElementById('vista-login').classList.remove('d-none');
+                document.getElementById('vista-login').classList.add('d-flex');
+            }
+        }
+
+        async function iniciarSesion() {
+            const email = document.getElementById('txtEmail').value.trim();
+            const password = document.getElementById('txtPassword').value.trim();
+
+            if (!email || !password) {
+                Swal.fire('Atención', 'Ingresa tu correo y contraseña.', 'warning');
+                return;
+            }
+
+            try {
+                const respuesta = await fetch(`${API_URL}/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`, { method: 'POST' });
+                const datos = await respuesta.json();
+
+                if (respuesta.ok) {
+                    // Guardamos la sesión en el navegador
+                    sessionStorage.setItem("usuarioActual", datos.nombre);
+                    // Limpiamos los campos
+                    document.getElementById('txtEmail').value = '';
+                    document.getElementById('txtPassword').value = '';
+                    
+                    verificarSesion(); // Entrar a la app
+                    
+                    const Toast = Swal.mixin({ toast: true, position: "top-end", showConfirmButton: false, timer: 3000, timerProgressBar: true });
+                    Toast.fire({ icon: "success", title: "Bienvenido " + datos.nombre });
+                } else {
+                    Swal.fire('Acceso Denegado', datos.error, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'No hay conexión con el servidor. Verifica que Java esté corriendo.', 'error');
+            }
+        }
+
+        function cerrarSesion() {
+            sessionStorage.removeItem("usuarioActual");
+            verificarSesion();
+        }
+
+        // --- SISTEMA DE NAVEGACIÓN APP ---
+        function cambiarVistaApp(vista) {
+            document.getElementById('vista-catalogo').classList.add('d-none');
+            document.getElementById('vista-crear').classList.add('d-none');
+            document.getElementById('btnMenuCatalogo').classList.remove('activo');
+            document.getElementById('btnMenuCrear').classList.remove('activo');
+
+            if (vista === 'catalogo') {
+                document.getElementById('vista-catalogo').classList.remove('d-none');
+                document.getElementById('btnMenuCatalogo').classList.add('activo');
+                cargarInventario(); 
+            } else if (vista === 'crear') {
+                document.getElementById('vista-crear').classList.remove('d-none');
+                document.getElementById('btnMenuCrear').classList.add('activo');
+            }
+        }
+
+        // --- LÓGICA DEL INVENTARIO ---
+        async function cargarInventario() {
+            try {
+                const respuesta = await fetch(`${API_URL}/productos`);
+                inventarioGlobal = await respuesta.json(); 
+                document.getElementById('txtBuscar').value = ''; 
+                dibujarTarjetas(inventarioGlobal); 
+                document.getElementById('estadoServidor').innerHTML = '🟢 Servidor Conectado';
+            } catch (error) {
+                document.getElementById('estadoServidor').innerHTML = '🔴 Sin Conexión';
+                Swal.fire('Error de Conexión', 'No se pudo conectar al servidor.', 'error');
+            }
+        }
+
+        function dibujarTarjetas(productos) {
+            const contenedor = document.getElementById('contenedorProductos');
+            contenedor.innerHTML = ''; 
+            if (productos.length === 0) {
+                contenedor.innerHTML = '<div class="alert alert-light text-center w-100 py-5 text-muted border">No se encontraron productos.</div>';
+                return;
+            }
+            productos.forEach(prod => {
+                contenedor.innerHTML += `
+                    <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+                        <div class="card border-0 producto-card rounded-4 h-100 shadow-sm">
+                            <div class="card-body text-center d-flex flex-column">
+                                <span class="badge bg-secondary align-self-center mb-3 px-3 py-2">${prod.sku}</span>
+                                <h5 class="card-title fw-bold text-truncate mb-1" title="${prod.nombre}">${prod.nombre}</h5>
+                                <div class="stock-numero my-3 ${prod.stock <= 3 ? 'text-danger' : ''}">${prod.stock}</div>
+                                <p class="text-muted small mb-4">Unidades</p>
+                                <div class="mt-auto">
+                                    <div class="input-group input-group-sm mb-2"><input type="number" id="cant-${prod.sku}" class="form-control text-center bg-light" placeholder="Cant." min="1"></div>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-danger w-50 fw-bold" onclick="registrarMovimiento('${prod.sku}', 'salida')">Retirar</button>
+                                        <button class="btn btn-outline-success w-50 fw-bold" onclick="registrarMovimiento('${prod.sku}', 'entrada')">Ingresar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function filtrarProductos() {
+            const t = document.getElementById('txtBuscar').value.toLowerCase();
+            dibujarTarjetas(inventarioGlobal.filter(p => p.nombre.toLowerCase().includes(t) || p.sku.toLowerCase().includes(t)));
+        }
+
+        async function crearProducto() {
+            const sku = document.getElementById('txtNuevoSku').value.trim(), nombre = document.getElementById('txtNuevoNombre').value.trim(), stock = document.getElementById('txtNuevoStock').value;
+            if (!sku || !nombre || stock === "") { Swal.fire('Atención', 'Por favor completa todos los campos.', 'warning'); return; }
+            try {
+                const res = await fetch(`${API_URL}/crear?sku=${encodeURIComponent(sku)}&nombre=${encodeURIComponent(nombre)}&stock=${stock}`, { method: 'POST' });
+                const dat = await res.json();
+                if (res.ok) {
+                    Swal.fire('¡Creado!', 'El producto ha sido guardado.', 'success');
+                    document.getElementById('txtNuevoSku').value = ''; document.getElementById('txtNuevoNombre').value = ''; document.getElementById('txtNuevoStock').value = '0';
+                    cambiarVistaApp('catalogo');
+                } else Swal.fire('Error', dat.error, 'error');
+            } catch (e) { Swal.fire('Error', 'Fallo al enviar los datos al servidor.', 'error'); }
+        }
+
+        async function registrarMovimiento(sku, tipo) {
+            const inputElement = document.getElementById(`cant-${sku}`), cantidad = parseInt(inputElement.value);
+            if (isNaN(cantidad) || cantidad <= 0) { Swal.fire('Atención', 'Ingresa una cantidad válida.', 'warning'); return; }
+            try {
+                const res = await fetch(`${API_URL}/movimiento?sku=${encodeURIComponent(sku)}&tipo=${tipo}&cantidad=${cantidad}`, { method: 'POST' });
+                const dat = await res.json();
+                if (res.ok) {
+                    Swal.fire({ position: "top-end", icon: "success", title: `${cantidad} unidades ${tipo === 'entrada' ? 'ingresadas' : 'retiradas'}`, showConfirmButton: false, timer: 1500 });
+                    cargarInventario(); 
+                } else Swal.fire('Denegado', dat.error, 'error');
+            } catch (e) { Swal.fire('Error', 'Fallo al procesar el movimiento.', 'error'); }
+        }
+
+        // Arrancar la app verificando si ya hay un usuario logueado
+        verificarSesion();
+    </script>
+</body>
+</html>
