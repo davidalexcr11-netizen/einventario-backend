@@ -18,15 +18,9 @@ import java.util.Map;
 public class ServidorInventario {
     
     // CONFIGURACIÓN DE LA BASE DE DATOS
-// Ruta alternativa usando el dominio directo de Supabase
-// 1. URL limpia, con el puerto 6543 y el certificado de seguridad obligatorio
-private static final String DB_URL = "jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require";
-
-// 2. Usuario completo (con tu ID de Supabase)
-private static final String DB_USER = "postgres.yrmxmdjmsvsnqsnekjkf"; 
-
-// 3. Tu contraseña real (Pega la que me mandaste aquí)
-private static final String DB_PASSWORD = "DSozr97Fl1fPFxPY";
+    private static final String DB_URL = "jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require";
+    private static final String DB_USER = "postgres.yrmxmdjmsvsnqsnekjkf"; 
+    private static final String DB_PASSWORD = "DSozr97Fl1fPFxPY";
 
     private static Connection getConexion() throws Exception {
         return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
@@ -34,15 +28,9 @@ private static final String DB_PASSWORD = "DSozr97Fl1fPFxPY";
 
     public static void main(String[] args) throws Exception {
         try (Connection conn = getConexion(); Statement stmt = conn.createStatement()) {
-            // Crear tabla de productos
             stmt.execute("CREATE TABLE IF NOT EXISTS producto (sku VARCHAR(50) PRIMARY KEY, nombre VARCHAR(255) NOT NULL, stock INT NOT NULL);");
-            
-            // Crear tabla de usuarios
             stmt.execute("CREATE TABLE IF NOT EXISTS usuario (id SERIAL PRIMARY KEY, email VARCHAR(150) UNIQUE NOT NULL, password VARCHAR(100) NOT NULL, nombre VARCHAR(100) NOT NULL);");
-            
-            // Insertar el usuario administrador por defecto (Ignora si ya existe)
             stmt.execute("INSERT INTO usuario (email, password, nombre) VALUES ('admin@einventario.com', 'admin123', 'Administrador Principal') ON CONFLICT (email) DO NOTHING;");
-            
             System.out.println("✅ Base de datos verificada. Módulo de seguridad activo.");
         } catch (Exception e) {
             System.err.println("❌ Error conectando a PostgreSQL.");
@@ -50,17 +38,20 @@ private static final String DB_PASSWORD = "DSozr97Fl1fPFxPY";
             return; 
         }
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+        // 🚨 SOLUCIÓN PARA RENDER: Usar el puerto dinámico de la nube
+        String portStr = System.getenv("PORT");
+        int port = (portStr != null) ? Integer.parseInt(portStr) : 8080;
+
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.createContext("/api/login", new LoginHandler());
         server.createContext("/api/productos", new ListarHandler());
         server.createContext("/api/crear", new CrearHandler());
         server.createContext("/api/movimiento", new MovimientoHandler());
         server.setExecutor(null);
         server.start();
-        System.out.println("🚀 Backend protegido corriendo en http://localhost:8080");
+        System.out.println("🚀 Backend protegido corriendo en el puerto: " + port);
     }
 
-    // Ruta de Seguridad: Validar credenciales
     static class LoginHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
@@ -93,7 +84,6 @@ private static final String DB_PASSWORD = "DSozr97Fl1fPFxPY";
         }
     }
 
-    // Las rutas anteriores se mantienen igual
     static class ListarHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
@@ -157,9 +147,11 @@ private static final String DB_PASSWORD = "DSozr97Fl1fPFxPY";
         }
     }
 
+    // 🚨 EL PARCHE DE SEGURIDAD FALTANTE PARA EL CORS
     private static void agregarCabecerasCORS(HttpExchange t) {
         t.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        t.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        t.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        t.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
         t.getResponseHeaders().add("Content-Type", "application/json");
     }
 
