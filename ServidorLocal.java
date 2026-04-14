@@ -15,69 +15,63 @@ import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 
-public class ServidorInventario {
+public class ServidorLocal {
     
-    // CONFIGURACIÓN DE LA BASE DE DATOS (NUBE - SUPABASE)
-    private static final String DB_URL = "jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require";
-    private static final String DB_USER = "postgres.yrmxmdjmsvsnqsnekjkf"; 
-    private static final String DB_PASSWORD = "DSozr97Fl1fPFxPY"; // 🚨 ¡No olvides poner tu contraseña real!
+    // 🌟 EL INTERRUPTOR MÁGICO 🌟
+    // Cambia esto a 'true' cuando quieras usar la nube (Render/Supabase)
+    // Cambia esto a 'false' para usar tu propia computadora (pgAdmin)
+    private static final boolean MODO_NUBE = false; 
 
+    // --- CREDENCIALES LOCALES (Tu PC) ---
+    private static final String LOCAL_URL = "jdbc:postgresql://localhost:5432/einventario_local";
+    private static final String LOCAL_USER = "postgres";
+    private static final String LOCAL_PASS = "brandon1600";
+
+    // --- CREDENCIALES NUBE (Supabase) ---
+    private static final String NUBE_URL = "jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require";
+    private static final String NUBE_USER = "postgres.yrmxmdjmsvsnqsnekjkf"; 
+    private static final String NUBE_PASS = "DSozr97Fl1fPFxPY";
+
+    // Esta función decide automáticamente a dónde conectarse
     private static Connection getConexion() throws Exception {
-        return DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+        if (MODO_NUBE) {
+            return DriverManager.getConnection(NUBE_URL, NUBE_USER, NUBE_PASS);
+        } else {
+            return DriverManager.getConnection(LOCAL_URL, LOCAL_USER, LOCAL_PASS);
+        }
     }
 
     public static void main(String[] args) throws Exception {
+        // Imprimir en qué modo estamos trabajando
+        System.out.println("Iniciando en modo: " + (MODO_NUBE ? "☁️ NUBE (Supabase)" : "💻 LOCAL (pgAdmin)"));
+
+        // Preparar la base de datos
         try (Connection conn = getConexion(); Statement stmt = conn.createStatement()) {
-            // Tablas originales
             stmt.execute("CREATE TABLE IF NOT EXISTS producto (sku VARCHAR(50) PRIMARY KEY, nombre VARCHAR(255) NOT NULL, stock INT NOT NULL);");
-            stmt.execute("CREATE TABLE IF NOT EXISTS usuario (id SERIAL PRIMARY KEY, email VARCHAR(150) UNIQUE NOT NULL, password VARCHAR(100) NOT NULL, nombre VARCHAR(100) NOT NULL);");
-            stmt.execute("INSERT INTO usuario (email, password, nombre) VALUES ('admin@einventario.com', 'admin123', 'Administrador Principal') ON CONFLICT (email) DO NOTHING;");
-            
-            // 🔥 NUEVA TABLA: KÁRDEX (Historial de movimientos)
             stmt.execute("CREATE TABLE IF NOT EXISTS kardex (id SERIAL PRIMARY KEY, sku VARCHAR(50) REFERENCES producto(sku), tipo VARCHAR(20) NOT NULL, cantidad INT NOT NULL, fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP);");
-            
-            System.out.println("✅ Base de datos verificada. Módulo Kárdex activo.");
+            System.out.println("✅ Base de datos lista. Tablas verificadas.");
         } catch (Exception e) {
-            System.err.println("❌ Error conectando a PostgreSQL.");
+            System.err.println("❌ Error conectando a PostgreSQL. ¿Pusiste bien la contraseña o encendiste pgAdmin?");
             e.printStackTrace();
             return; 
         }
 
+        // Definir puerto (Render usa uno dinámico, tu PC usa 8080)
         String portStr = System.getenv("PORT");
         int port = (portStr != null) ? Integer.parseInt(portStr) : 8080;
 
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-        server.createContext("/api/login", new LoginHandler());
         server.createContext("/api/productos", new ListarHandler());
         server.createContext("/api/crear", new CrearHandler());
         server.createContext("/api/movimiento", new MovimientoHandler());
-        
-        // 🔥 NUEVA RUTA PARA LEER EL HISTORIAL
         server.createContext("/api/kardex", new KardexHandler());
         
         server.setExecutor(null);
         server.start();
-        System.out.println("🚀 Backend protegido corriendo en el puerto: " + port);
+        System.out.println("🚀 Servidor corriendo en el puerto: " + port);
     }
 
-    // --- MANEJADORES EXISTENTES (LOGIN, LISTAR, CREAR) ---
-    static class LoginHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange t) throws IOException {
-            agregarCabecerasCORS(t);
-            if ("OPTIONS".equals(t.getRequestMethod())) { t.sendResponseHeaders(204, -1); return; }
-            try {
-                Map<String, String> params = obtenerParametros(t.getRequestURI().getQuery());
-                String sql = "SELECT nombre FROM usuario WHERE email = ? AND password = ?";
-                try (Connection conn = getConexion(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                    pstmt.setString(1, params.get("email")); pstmt.setString(2, params.get("password"));
-                    ResultSet rs = pstmt.executeQuery();
-                    if (rs.next()) enviarRespuesta(t, 200, "{\"mensaje\": \"Acceso concedido\", \"nombre\": \"" + rs.getString("nombre") + "\"}");
-                    else enviarRespuesta(t, 401, "{\"error\": \"Credenciales incorrectas\"}");
-                }
-            } catch (Exception e) { enviarRespuesta(t, 500, "{\"error\": \"Error procesando el login.\"}"); }
-        }
-    }
+    // --- MANEJADORES DE RUTAS ---
 
     static class ListarHandler implements HttpHandler {
         @Override
@@ -112,11 +106,10 @@ public class ServidorInventario {
                     pstmt.executeUpdate();
                 }
                 enviarRespuesta(t, 200, "{\"mensaje\": \"Producto creado\"}");
-            } catch (Exception e) { enviarRespuesta(t, 400, "{\"error\": \"El SKU ya existe o los datos son inválidos.\"}"); }
+            } catch (Exception e) { enviarRespuesta(t, 400, "{\"error\": \"Error al crear producto.\"}"); }
         }
     }
 
-    // 🔥 MANEJADOR MODIFICADO: AHORA GUARDA EN EL KÁRDEX
     static class MovimientoHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
@@ -136,34 +129,27 @@ public class ServidorInventario {
                     }
                     if ("salida".equals(tipo) && stockActual < cantidad) { enviarRespuesta(t, 400, "{\"error\": \"Stock insuficiente.\"}"); return; }
                     
-                    // 1. Actualizar el stock del producto
                     String updateSql = "salida".equals(tipo) ? "UPDATE producto SET stock = stock - ? WHERE sku = ?" : "UPDATE producto SET stock = stock + ? WHERE sku = ?";
                     try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
                         updateStmt.setInt(1, cantidad); updateStmt.setString(2, sku); updateStmt.executeUpdate();
                     }
 
-                    // 2. 🔥 REGISTRAR EL MOVIMIENTO EN EL KÁRDEX
                     String kardexSql = "INSERT INTO kardex (sku, tipo, cantidad) VALUES (?, ?, ?)";
                     try (PreparedStatement kardexStmt = conn.prepareStatement(kardexSql)) {
-                        kardexStmt.setString(1, sku);
-                        kardexStmt.setString(2, tipo);
-                        kardexStmt.setInt(3, cantidad);
-                        kardexStmt.executeUpdate();
+                        kardexStmt.setString(1, sku); kardexStmt.setString(2, tipo); kardexStmt.setInt(3, cantidad); kardexStmt.executeUpdate();
                     }
                 }
-                enviarRespuesta(t, 200, "{\"mensaje\": \"Movimiento exitoso y registrado en Kárdex\"}");
+                enviarRespuesta(t, 200, "{\"mensaje\": \"Movimiento registrado\"}");
             } catch (Exception e) { enviarRespuesta(t, 500, "{\"error\": \"Error procesando el movimiento.\"}"); }
         }
     }
 
-    // 🔥 NUEVO MANEJADOR: PARA LEER EL HISTORIAL
     static class KardexHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
             agregarCabecerasCORS(t);
             if ("OPTIONS".equals(t.getRequestMethod())) { t.sendResponseHeaders(204, -1); return; }
             StringBuilder jsonArray = new StringBuilder("[");
-            // Unimos la tabla kardex con producto para traer el nombre también
             String sql = "SELECT k.fecha, k.sku, p.nombre, k.tipo, k.cantidad FROM kardex k JOIN producto p ON k.sku = p.sku ORDER BY k.fecha DESC LIMIT 50";
             try (Connection conn = getConexion(); PreparedStatement pstmt = conn.prepareStatement(sql); ResultSet rs = pstmt.executeQuery()) {
                 boolean primero = true;
