@@ -15,6 +15,15 @@ import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.itextpdf.text.BaseColor;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.Element;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.FontFactory;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
+
 public class ServidorInventario {
     
     // CONFIGURACIÓN DE LA BASE DE DATOS
@@ -55,6 +64,7 @@ private static final String DB_PASSWORD = "DSozr97Fl1fPFxPY";
         server.createContext("/api/productos", new ListarHandler());
         server.createContext("/api/crear", new CrearHandler());
         server.createContext("/api/movimiento", new MovimientoHandler());
+        server.createContext("/api/reporte", new ReporteHandler());
         server.setExecutor(null);
         server.start();
         System.out.println("🚀 Backend protegido corriendo en http://localhost:8080");
@@ -174,5 +184,50 @@ private static final String DB_PASSWORD = "DSozr97Fl1fPFxPY";
             String[] entry = param.split("="); if (entry.length > 1) result.put(entry[0], URLDecoder.decode(entry[1], StandardCharsets.UTF_8.name()));
         }
         return result;
+    }
+
+    static class ReporteHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange t) throws IOException {
+            try (Connection conn = getConexion()) {
+                t.getResponseHeaders().add("Content-Type", "application/pdf");
+                t.getResponseHeaders().add("Content-Disposition", "attachment; filename=Reporte_Inventario.pdf");
+                t.sendResponseHeaders(200, 0);
+
+                OutputStream os = t.getResponseBody();
+                Document document = new Document();
+                PdfWriter.getInstance(document, os);
+                document.open();
+
+                Font fontTitulo = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, BaseColor.BLUE);
+                Paragraph titulo = new Paragraph("REPORTE DE INVENTARIO - E-INVENTARIO\n\n", fontTitulo);
+                titulo.setAlignment(Element.ALIGN_CENTER);
+                document.add(titulo);
+
+                PdfPTable table = new PdfPTable(3);
+                table.addCell("SKU");
+                table.addCell("Nombre del Producto");
+                table.addCell("Stock Actual");
+
+                String sql = "SELECT sku, nombre, stock FROM producto ORDER BY nombre ASC";
+                try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+                    while (rs.next()) {
+                        table.addCell(rs.getString("sku"));
+                        table.addCell(rs.getString("nombre"));
+                        table.addCell(String.valueOf(rs.getInt("stock")));
+                    }
+                }
+
+                document.add(table);
+                document.close();
+                os.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+                String err = "Error al generar PDF";
+                t.sendResponseHeaders(500, err.length());
+                t.getResponseBody().write(err.getBytes());
+                t.getResponseBody().close();
+            }
+        }
     }
 }

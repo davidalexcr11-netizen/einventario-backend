@@ -3,91 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>E-Inventario Cloud</title>
+    <title>E-Inventario Enterprise</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar-brand { font-weight: 800; letter-spacing: -1px; }
+        .login-container { max-width: 400px; margin-top: 10vh; }
+        .fade-in { animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Resaltar el buscador */
+        #inputBusqueda:focus { border-color: #0d6efd; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25); }
+        .card { border: none; border-radius: 12px; }
+    </style>
 </head>
-<body class="bg-light">
+<body>
 
-<nav class="navbar navbar-dark bg-dark mb-4 shadow">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm mb-4 d-none" id="navbarDashboard">
     <div class="container">
-        <span class="navbar-brand mb-0 h1">📦 E-Inventario (Nube)</span>
+        <a class="navbar-brand" href="#">📦 E-INVENTARIO</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto align-items-center">
+                <li class="nav-item me-3">
+                    <span class="nav-link text-white fw-bold" id="txtUsuario">Usuario</span>
+                </li>
+                
+                <li class="nav-item dropdown mb-2 mb-lg-0 me-lg-2">
+                    <a class="nav-link dropdown-toggle text-white btn btn-primary btn-sm px-3" href="#" id="navModulos" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Gestionar Módulos
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="navModulos">
+                        <li><a class="dropdown-item" href="#" onclick="mostrarSeccion('inventario')">📦 Stock e Inventario</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="mostrarSeccion('clientes')">👥 Directorio de Clientes</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="abrirKardex()">📋 Ver Kárdex (Historial)</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <button class="btn btn-outline-danger btn-sm px-3 w-100" onclick="cerrarSesion()">Salir</button>
+                </li>
+            </ul>
+        </div>
     </div>
 </nav>
 
-<div class="container">
-    <div class="row">
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">Nuevo Producto</h5>
-                </div>
-                <div class="card-body">
-                    <form id="formCrear">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Código (SKU)</label>
-                            <input type="text" class="form-control" id="sku" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Nombre del Producto</label>
-                            <input type="text" class="form-control" id="nombre" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Cantidad Inicial</label>
-                            <input type="number" class="form-control" id="stock" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Producto</button>
-                    </form>
-                </div>
-            </div>
+<div class="container login-container fade-in" id="pantallaLogin">
+    <div class="card shadow">
+        <div class="card-header bg-dark text-white text-center py-3">
+            <h4 class="mb-0">🔒 Acceso al Sistema</h4>
         </div>
+        <div class="card-body p-4">
+            <form id="formLogin">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Correo Electrónico</label>
+                    <input type="email" class="form-control" id="email" value="admin@einventario.com" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Contraseña</label>
+                    <input type="password" class="form-control" id="password" value="admin123" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 fw-bold fs-5">Ingresar</button>
+            </form>
+        </div>
+    </div>
+</div>
 
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">Inventario Actual</h5>
-                    <div>
-                        <button class="btn btn-sm btn-light fw-bold" onclick="cargarInventario()">Actualizar 🔄</button>
-                        <button class="btn btn-sm btn-warning fw-bold ms-2" onclick="abrirKardex()">📋 Ver Kárdex</button>
+<div class="container d-none fade-in" id="pantallaInventario">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="row align-items-center mb-4">
+                <div class="col-md-4">
+                    <h5 class="fw-bold mb-0">📦 Stock de Almacén</h5>
+                </div>
+                <div class="col-md-8">
+                    <div class="d-flex gap-2 justify-content-md-end mt-3 mt-md-0">
+                        <div class="input-group" style="max-width: 300px;">
+                            <span class="input-group-text bg-white"><i class="text-muted">🔍</i></span>
+                            <input type="text" class="form-control" id="inputBusqueda" placeholder="Buscar producto..." onkeyup="filtrarProductos()">
+                        </div>
+                        <button class="btn btn-primary fw-bold" onclick="abrirModalCrear()">+ Nuevo</button>
                     </div>
                 </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover table-striped mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>SKU</th>
-                                <th>Producto</th>
-                                <th>Stock</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaProductos"></tbody>
-                    </table>
-                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>SKU</th>
+                            <th>Producto</th>
+                            <th>Stock</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaProductos"></tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="modalKardex" tabindex="-1" aria-hidden="true">
+<div class="container fade-in d-none" id="pantallaClientes">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">👥 Directorio de Clientes</h5>
+                <button class="btn btn-success fw-bold" onclick="abrirModalCliente()">+ Nuevo Cliente</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nombre Completo</th>
+                            <th>Correo Electrónico</th>
+                            <th>Teléfono</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaClientes"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalCrear" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Registrar Nuevo Artículo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formCrear">
+                    <div class="mb-3"><label class="form-label fw-bold">Código (SKU)</label><input type="text" class="form-control" id="sku" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Nombre</label><input type="text" class="form-control" id="nombre" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Stock Inicial</label><input type="number" class="form-control" id="stock" required></div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">Guardar Producto</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalCrearCliente" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Registrar Nuevo Cliente</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formCrearCliente">
+                    <div class="mb-3"><label class="form-label fw-bold">Nombre Completo</label><input type="text" class="form-control" id="cli_nombre" required></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Email</label><input type="email" class="form-control" id="cli_email"></div>
+                    <div class="mb-3"><label class="form-label fw-bold">Teléfono</label><input type="text" class="form-control" id="cli_tel"></div>
+                    <button type="submit" class="btn btn-success w-100 fw-bold">Guardar Cliente</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalKardex" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <div class="modal-header bg-dark text-white">
-        <h5 class="modal-title">📋 Historial de Movimientos (Kárdex)</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
+      <div class="modal-header bg-dark text-white"><h5 class="modal-title">📋 Historial de Movimientos</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <div class="modal-body p-0">
-        <table class="table table-striped mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>Fecha</th>
-              <th>Movimiento</th>
-              <th>SKU</th>
-              <th>Producto</th>
-              <th>Cant.</th>
-            </tr>
-          </thead>
-          <tbody id="tablaKardex"></tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+            <thead class="table-light"><tr><th>Fecha</th><th>Tipo</th><th>SKU</th><th>Producto</th><th>Cant.</th></tr></thead>
+            <tbody id="tablaKardex"></tbody>
+            </table>
+        </div>
       </div>
     </div>
   </div>
@@ -96,44 +187,90 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // 🚨 1. ¡PON TU LINK DE RENDER AQUÍ! (Asegúrate de que termine en /api)
-    const API_URL = 'https://api-einventario.onrender.com/'; 
+    const API_URL = 'http://localhost:8080/api';
+
+    // 🔄 NAVEGACIÓN ENTRE PANTALLAS
+    function mostrarSeccion(seccion) {
+        document.getElementById('pantallaInventario').classList.add('d-none');
+        document.getElementById('pantallaClientes').classList.add('d-none');
+        
+        if(seccion === 'inventario') {
+            document.getElementById('pantallaInventario').classList.remove('d-none');
+            cargarInventario();
+        } else if(seccion === 'clientes') {
+            document.getElementById('pantallaClientes').classList.remove('d-none');
+            cargarClientes();
+        }
+    }
+
+    // 🚀 BUSCADOR DE INVENTARIO
+    function filtrarProductos() {
+        const busqueda = document.getElementById('inputBusqueda').value.toLowerCase();
+        const filas = document.querySelectorAll('#tablaProductos tr');
+        filas.forEach(fila => {
+            const contenidoFila = fila.textContent.toLowerCase();
+            fila.style.display = contenidoFila.includes(busqueda) ? "" : "none";
+        });
+    }
+
+    // 🔒 LOGIN Y SESIÓN
+    document.getElementById('formLogin').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        try {
+            const res = await fetch(`${API_URL}/login?email=${email}&password=${pass}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('pantallaLogin').classList.add('d-none');
+                document.getElementById('navbarDashboard').classList.remove('d-none');
+                document.getElementById('txtUsuario').innerText = data.nombre;
+                mostrarSeccion('inventario'); // Arranca en la pantalla de inventario
+            } else { alert('Acceso denegado'); }
+        } catch (error) { alert('Error al conectar con Java'); }
+    });
+
+    function cerrarSesion() { location.reload(); }
+
+    // 📦 LÓGICA DE INVENTARIO
+    function abrirModalCrear() { new bootstrap.Modal(document.getElementById('modalCrear')).show(); }
 
     async function cargarInventario() {
         try {
-            const MODO_NUBE = false; 
-
-    const API_URL = MODO_NUBE 
-        ? 'https://api-einventario.onrender.com/api' 
-        : 'http://localhost:8080/api';
-            const productos = await respuesta.json();
+            const res = await fetch(API_URL + '/productos');
+            const productos = await res.json();
             const tbody = document.getElementById('tablaProductos');
-            tbody.innerHTML = ''; 
-
-            productos.forEach(prod => {
-                const colorStock = prod.stock < 5 ? 'danger' : 'success';
+            tbody.innerHTML = '';
+            productos.forEach(p => {
                 tbody.innerHTML += `
                     <tr>
-                        <td class="fw-bold">${prod.sku}</td>
-                        <td>${prod.nombre}</td>
-                        <td><span class="badge bg-${colorStock} fs-6">${prod.stock}</span></td>
+                        <td class="fw-bold text-primary">${p.sku}</td>
+                        <td class="fw-semibold">${p.nombre}</td>
+                        <td><span class="badge fs-6 ${p.stock < 5 ? 'bg-danger':'bg-success'}">${p.stock}</span></td>
                         <td>
-                            <button class="btn btn-sm btn-outline-success" onclick="moverStock('${prod.sku}', 'entrada')">➕</button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="moverStock('${prod.sku}', 'salida')">➖</button>
+                            <div class="d-flex justify-content-end gap-2">
+                                <button class="btn btn-sm btn-outline-success px-3" onclick="moverStock('${p.sku}', 'entrada')">➕</button>
+                                <button class="btn btn-sm btn-outline-warning px-3" onclick="moverStock('${p.sku}', 'salida')">➖</button>
+                                <button class="btn btn-sm btn-danger px-3" onclick="eliminarProducto('${p.sku}')">🗑️</button>
+                            </div>
                         </td>
-                    </tr>
-                `;
+                    </tr>`;
             });
-        } catch (error) { console.error('Error al cargar:', error); }
+            filtrarProductos(); // Mantener el filtro si el usuario estaba buscando algo
+        } catch (error) { }
     }
 
     async function moverStock(sku, tipo) {
-        const cant = prompt(`¿Cuántas unidades de ${tipo} para el producto ${sku}?`);
+        const cant = prompt(`¿Cantidad de ${tipo} para el producto ${sku}?`);
         if (!cant || isNaN(cant) || cant <= 0) return;
-        try {
-            await fetch(`${API_URL}/movimiento?sku=${sku}&tipo=${tipo}&cantidad=${cant}`, { method: 'POST' });
-            cargarInventario();
-        } catch (error) { alert('Error al procesar movimiento'); }
+        await fetch(`${API_URL}/movimiento?sku=${sku}&tipo=${tipo}&cantidad=${cant}`, { method: 'POST' });
+        cargarInventario();
+    }
+
+    async function eliminarProducto(sku) {
+        if (!confirm(`¿Estás seguro de eliminar el producto ${sku}?`)) return;
+        await fetch(`${API_URL}/eliminar?sku=${sku}`, { method: 'DELETE' });
+        cargarInventario();
     }
 
     document.getElementById('formCrear').addEventListener('submit', async function(e) {
@@ -141,40 +278,66 @@
         const sku = document.getElementById('sku').value;
         const nombre = document.getElementById('nombre').value;
         const stock = document.getElementById('stock').value;
-        try {
-            await fetch(`${API_URL}/crear?sku=${sku}&nombre=${encodeURIComponent(nombre)}&stock=${stock}`, { method: 'POST' });
+        const res = await fetch(`${API_URL}/crear?sku=${sku}&nombre=${encodeURIComponent(nombre)}&stock=${stock}`, { method: 'POST' });
+        if(res.ok) {
             document.getElementById('formCrear').reset();
+            bootstrap.Modal.getInstance(document.getElementById('modalCrear')).hide();
             cargarInventario();
-        } catch (error) { alert('Error al guardar'); }
+        }
     });
 
     async function abrirKardex() {
-        try {
-            const respuesta = await fetch(API_URL + '/kardex');
-            const historial = await respuesta.json();
-            const tbody = document.getElementById('tablaKardex');
-            tbody.innerHTML = ''; 
-
-            historial.forEach(mov => {
-                const colorBadge = mov.tipo === 'entrada' ? 'bg-success' : 'bg-danger';
-                const textoTipo = mov.tipo === 'entrada' ? 'Entrada ➕' : 'Salida ➖';
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="text-muted small">${mov.fecha}</td>
-                        <td><span class="badge ${colorBadge}">${textoTipo}</span></td>
-                        <td class="fw-bold">${mov.sku}</td>
-                        <td>${mov.nombre}</td>
-                        <td class="fw-bold fs-6">${mov.cantidad}</td>
-                    </tr>
-                `;
-            });
-            new bootstrap.Modal(document.getElementById('modalKardex')).show();
-        } catch (error) { alert('Error al cargar historial.'); }
+        const res = await fetch(API_URL + '/kardex');
+        const h = await res.json();
+        const t = document.getElementById('tablaKardex');
+        t.innerHTML = '';
+        h.forEach(m => {
+            t.innerHTML += `<tr><td class="small text-muted">${m.fecha}</td><td><span class="badge ${m.tipo=='entrada'?'bg-success':'bg-danger'}">${m.tipo}</span></td><td class="fw-bold">${m.sku}</td><td>${m.nombre}</td><td class="fw-bold fs-6">${m.cantidad}</td></tr>`;
+        });
+        new bootstrap.Modal(document.getElementById('modalKardex')).show();
     }
 
-    document.addEventListener('DOMContentLoaded', cargarInventario);
-    
-</script>
+    // 👥 LÓGICA DE CLIENTES
+    function abrirModalCliente() { new bootstrap.Modal(document.getElementById('modalCrearCliente')).show(); }
 
+    async function cargarClientes() {
+        try {
+            const res = await fetch(API_URL + '/clientes');
+            const clientes = await res.json();
+            const tbody = document.getElementById('tablaClientes');
+            tbody.innerHTML = '';
+            clientes.forEach(c => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold text-dark">${c.nombre}</td>
+                        <td>${c.email}</td>
+                        <td>${c.telefono}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger px-3" onclick="eliminarCliente(${c.id})">🗑️ Borrar</button>
+                        </td>
+                    </tr>`;
+            });
+        } catch (error) { }
+    }
+
+    document.getElementById('formCrearCliente').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const n = document.getElementById('cli_nombre').value;
+        const m = document.getElementById('cli_email').value;
+        const t = document.getElementById('cli_tel').value;
+        const res = await fetch(`${API_URL}/crearCliente?nombre=${encodeURIComponent(n)}&email=${encodeURIComponent(m)}&telefono=${encodeURIComponent(t)}`, { method: 'POST' });
+        if(res.ok) {
+            document.getElementById('formCrearCliente').reset();
+            bootstrap.Modal.getInstance(document.getElementById('modalCrearCliente')).hide();
+            cargarClientes();
+        }
+    });
+
+    async function eliminarCliente(id) {
+        if(!confirm('¿Estás seguro de borrar este cliente del directorio?')) return;
+        await fetch(`${API_URL}/eliminarCliente?id=${id}`, { method: 'DELETE' });
+        cargarClientes();
+    }
+</script>
 </body>
 </html>
